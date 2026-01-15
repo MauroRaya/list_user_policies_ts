@@ -25,25 +25,31 @@ async function listUserPolicyNames(
 async function listAttachedUserPolicyNames(
   client: IAMClient,
   userName: string
-): Promise<(string | undefined)[]> {
+): Promise<string[]> {
   const input: ListAttachedUserPoliciesCommandInput = { UserName: userName };
   const command = new ListAttachedUserPoliciesCommand(input);
   const response = await client.send(command);
 
   const policies = response.AttachedPolicies ?? [];
-  return policies.map(policy => policy.PolicyName);
+
+  return policies
+    .map(policy => policy.PolicyName)
+    .filter(policyName => policyName !== undefined);
 }
 
 async function listGroupNamesForUser(
   client: IAMClient,
   userName: string
-): Promise<(string | undefined)[]> {
+): Promise<string[]> {
   const input: ListGroupsForUserCommandInput = { UserName: userName };
   const command = new ListGroupsForUserCommand(input);
   const response = await client.send(command);
 
   const groups = response.Groups ?? [];
-  return groups.map(group => group.GroupName);
+
+  return groups
+    .map(group => group.GroupName)
+    .filter(groupName => groupName !== undefined);
 }
 
 async function listGroupPolicyNames(
@@ -59,13 +65,16 @@ async function listGroupPolicyNames(
 async function listAttachedGroupPolicyNames(
   client: IAMClient,
   groupName: string
-): Promise<(string | undefined)[]> {
+): Promise<string[]> {
   const input: ListAttachedGroupPoliciesCommandInput = { GroupName: groupName };
   const command = new ListAttachedGroupPoliciesCommand(input);
   const response = await client.send(command);
 
   const policies = response.AttachedPolicies ?? [];
-  return policies.map(policy => policy.PolicyName);
+
+  return policies
+    .map(policy => policy.PolicyName)
+    .filter(policyName => policyName !== undefined);
 }
 
 async function main() {
@@ -78,10 +87,14 @@ async function main() {
 
   const groupNames = await listGroupNamesForUser(client, userName);
 
-  for (const groupName of groupNames!) {
-    policyNames.push(...await listGroupPolicyNames(client, groupName!));
-    policyNames.push(...await listAttachedGroupPolicyNames(client, groupName!));
+  for (const groupName of groupNames) {
+    policyNames.push(...await listGroupPolicyNames(client, groupName));
+    policyNames.push(...await listAttachedGroupPolicyNames(client, groupName));
   }
+
+  console.log(userName);
+  console.log(policyNames);
+  console.log(groupNames);
 }
 
 main();
