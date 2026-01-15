@@ -11,6 +11,12 @@ import {
   type ListGroupsForUserCommandInput, 
   type ListUserPoliciesCommandInput
 } from '@aws-sdk/client-iam';
+import { 
+  createReadStream, 
+  createWriteStream 
+} from 'fs';
+import { EOL } from 'os';
+import readline from 'readline';
 
 async function listUserPolicyNames(
   client: IAMClient,
@@ -78,23 +84,79 @@ async function listAttachedGroupPolicyNames(
 }
 
 async function main() {
+  const ignoreUsers = ['<root_account>'];
   const client = new IAMClient();
-  const userName = 'foo';
 
-  const policyNames = [];
-  policyNames.push(...await listUserPolicyNames(client, userName));
-  policyNames.push(...await listAttachedUserPolicyNames(client, userName));
-
-  const groupNames = await listGroupNamesForUser(client, userName);
-
-  for (const groupName of groupNames) {
-    policyNames.push(...await listGroupPolicyNames(client, groupName));
-    policyNames.push(...await listAttachedGroupPolicyNames(client, groupName));
+  const args = process.argv.slice(2);
+  if (args.length < 2) {
+    console.error('Usage: npm start <input_csv_path> <output_csv_path>');
+    process.exit(1);
   }
 
-  console.log(userName);
-  console.log(policyNames);
-  console.log(groupNames);
+  const [inputPath, outputPath] = args;
+  if (!inputPath) {
+    console.error('input path is required');
+    process.exit(1);
+  }
+  if (!outputPath) {
+    console.error('output path is required');
+    process.exit(1);
+  }
+
+  const inputStream = createReadStream(inputPath);
+  const rl = readline.createInterface({ 
+    input: inputStream, 
+    crlfDelay: Infinity 
+  });
+
+  const outputStream = createWriteStream(outputPath);
+
+  let headers: string[] = [];
+  let isFirstLine = true;
+
+  for await (const line of rl) {
+    if (isFirstLine) {
+      headers = line.split(',');
+      headers.push('policy_names', 'group_names', 'role_names');
+
+      outputStream.write(headers.join(',') + EOL);
+
+      isFirstLine = false;
+      continue;
+    }
+
+    const row = line.split(',');
+    const userIndex = headers.indexOf('user');
+    if (userIndex === -1) throw new Error('CSV must have "user" column');
+
+    const userName = row[userIndex];
+    if (!userName || ignoreUsers.includes(userName)) continue;
+
+    console.log(`Processing user ${userName}...`);
+
+    const policyNames: string[] = [
+      ...(await listUserPolicyNames(client, userName)),
+      ...(await listAttachedUserPolicyNames(client, userName))
+    ];
+
+    const groupNames = await listGroupNamesForUser(client, userName);
+    for (const groupName of groupNames) {
+      policyNames.push(...await listGroupPolicyNames(client, groupName));
+      policyNames.push(...await listAttachedGroupPolicyNames(client, groupName));
+    }
+
+    const newRow = [
+      ...row,
+      policyNames.join(";"),
+      groupNames.join(";"),
+      'no information'
+    ];
+
+    outputStream.write(newRow.join(",") + EOL);
+  }
+
+  outputStream.end();
+  console.log(`CSV written to ${outputPath}`);
 }
 
 main();

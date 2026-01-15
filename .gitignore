@@ -1,4 +1,4 @@
 node_modules/
 dist/
 status_reports.csv
-status_reports_copy.csv
+status_reports_with_policies.csv
