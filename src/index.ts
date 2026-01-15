@@ -1,18 +1,16 @@
 import { 
   IAMClient, 
+  ListAttachedGroupPoliciesCommand, 
   ListAttachedUserPoliciesCommand, 
   ListGroupPoliciesCommand, 
   ListGroupsForUserCommand, 
   ListUserPoliciesCommand, 
+  type ListAttachedGroupPoliciesCommandInput, 
   type ListAttachedUserPoliciesCommandInput, 
   type ListGroupPoliciesCommandInput, 
   type ListGroupsForUserCommandInput, 
   type ListUserPoliciesCommandInput
 } from '@aws-sdk/client-iam';
-
-// list user policies
-// list user attached policies
-// list user groups
 
 async function listUserPolicyNames(
   client: IAMClient,
@@ -58,6 +56,18 @@ async function listGroupPolicyNames(
   return response.PolicyNames ?? [];
 }
 
+async function listAttachedGroupPolicyNames(
+  client: IAMClient,
+  groupName: string
+): Promise<(string | undefined)[]> {
+  const input: ListAttachedGroupPoliciesCommandInput = { GroupName: groupName };
+  const command = new ListAttachedGroupPoliciesCommand(input);
+  const response = await client.send(command);
+
+  const policies = response.AttachedPolicies ?? [];
+  return policies.map(policy => policy.PolicyName);
+}
+
 async function main() {
   const client = new IAMClient();
   const userName = 'foo';
@@ -70,6 +80,7 @@ async function main() {
 
   for (const groupName of groupNames!) {
     policyNames.push(...await listGroupPolicyNames(client, groupName!));
+    policyNames.push(...await listAttachedGroupPolicyNames(client, groupName!));
   }
 }
 
