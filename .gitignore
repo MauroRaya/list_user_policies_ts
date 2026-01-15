@@ -1,3 +1,4 @@
 node_modules/
 dist/
 status_reports.csv
+status_reports_copy.csv

@@ -9,9 +9,12 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "devDependencies": {
     "@types/node": "^25.0.8",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "@aws-sdk/client-iam": "^3.969.0"
   }
 }
