@@ -1,9 +1,11 @@
 import { 
   IAMClient, 
   ListAttachedUserPoliciesCommand, 
+  ListGroupPoliciesCommand, 
   ListGroupsForUserCommand, 
   ListUserPoliciesCommand, 
   type ListAttachedUserPoliciesCommandInput, 
+  type ListGroupPoliciesCommandInput, 
   type ListGroupsForUserCommandInput, 
   type ListUserPoliciesCommandInput
 } from '@aws-sdk/client-iam';
@@ -15,44 +17,60 @@ import {
 async function listUserPolicyNames(
   client: IAMClient,
   userName: string
-): Promise<string[] | undefined> {
+): Promise<string[]> {
   const input: ListUserPoliciesCommandInput = { UserName: userName };
   const command = new ListUserPoliciesCommand(input);
   const response = await client.send(command);
-  return response.PolicyNames;
+  return response.PolicyNames ?? [];
 }
 
 async function listAttachedUserPolicyNames(
   client: IAMClient,
   userName: string
-): Promise<(string | undefined)[] | undefined> {
+): Promise<(string | undefined)[]> {
   const input: ListAttachedUserPoliciesCommandInput = { UserName: userName };
   const command = new ListAttachedUserPoliciesCommand(input);
   const response = await client.send(command);
-  return response.AttachedPolicies?.map(policy => policy.PolicyName);
+
+  const policies = response.AttachedPolicies ?? [];
+  return policies.map(policy => policy.PolicyName);
 }
 
 async function listGroupNamesForUser(
   client: IAMClient,
   userName: string
-): Promise<(string | undefined)[] | undefined> {
+): Promise<(string | undefined)[]> {
   const input: ListGroupsForUserCommandInput = { UserName: userName };
   const command = new ListGroupsForUserCommand(input);
   const response = await client.send(command);
-  return response.Groups?.map(group => group.GroupName);
+
+  const groups = response.Groups ?? [];
+  return groups.map(group => group.GroupName);
+}
+
+async function listGroupPolicyNames(
+  client: IAMClient,
+  groupName: string
+): Promise<string[]> {
+  const input: ListGroupPoliciesCommandInput = { GroupName: groupName };
+  const command = new ListGroupPoliciesCommand(input);
+  const response = await client.send(command);
+  return response.PolicyNames ?? [];
 }
 
 async function main() {
   const client = new IAMClient();
+  const userName = 'foo';
 
-  // const policyNames = await listUserPolicyNames(client, 'foo')
-  // console.log(policyNames);
+  const policyNames = [];
+  policyNames.push(...await listUserPolicyNames(client, userName));
+  policyNames.push(...await listAttachedUserPolicyNames(client, userName));
 
-  const policyNames = await listAttachedUserPolicyNames(client, 'foo')
-  console.log(policyNames);
+  const groupNames = await listGroupNamesForUser(client, userName);
 
-  // const groups = await listGroupNamesForUser(client, 'foo');
-  // console.log(groups);
+  for (const groupName of groupNames!) {
+    policyNames.push(...await listGroupPolicyNames(client, groupName!));
+  }
 }
 
 main();
